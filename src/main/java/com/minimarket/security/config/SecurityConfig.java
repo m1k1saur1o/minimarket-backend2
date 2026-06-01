@@ -1,75 +1,41 @@
 package com.minimarket.security.config;
 
-//import com.minimarket.security.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
 
-    //private final CustomUserDetailsService customUserDetailsService;
-
-    @Value("${app.security.user.name}")
-    private String inMemoryUser;
-
-    @Value("${app.security.user.password}")
-    private String inMemoryPass;
-
-    @Value("${app.security.user.roles:USER}")
-    private String inMemoryRoles;
-
-    /*
-    public SecurityConfig(CustomUserDetailsService customUserDetailsService) {
-        this.customUserDetailsService = customUserDetailsService;
-    }
-    */
+    // Almacenamiento seguro de contraseñas utilizando hashing BCrypt
     @Bean
-    public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-    UserDetails user = User.withUsername(inMemoryUser)
-            .password(passwordEncoder.encode(inMemoryPass))
-            .roles(inMemoryRoles.split(","))
-            .build();
-    return new InMemoryUserDetailsManager(user);
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(); 
     }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable()) // Deshabilita CSRF con la nueva sintaxis
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**").permitAll() // Permitir acceso público
-                        .anyRequest().authenticated() // Requiere autenticación para el resto
-                )
-                .formLogin(form -> form
-                        .defaultSuccessUrl("/public/hola", true) // Redirigir después del login
-                )
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/public/hola")
-                        .permitAll()
-                );
-        return http.build();
-    }
-
+    // Exponemos el AuthenticationManager para que Miguel lo use en el AuthController
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(); 
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable()) // Deshabilitamos CSRF para usar JWT
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Entorno sin estado (stateless)
+            .authorizeHttpRequests(auth -> auth
+                .anyRequest().permitAll() // Queda preparado para que Miguel restrinja los endpoints por roles
+            );
+        return http.build();
     }
-}
+} 
+ 
