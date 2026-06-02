@@ -1,35 +1,54 @@
 package com.minimarket.security.util;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import java.nio.charset.StandardCharsets;
+import io.jsonwebtoken.Jwts;
+
+import org.springframework.beans.factory.annotation.Value;
+
+import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.function.Function;
 
+import jakarta.annotation.PostConstruct;
+
 @Component
 public class JwtUtil {
+
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+
+    @Value("${jwt.expiration}")
+    private int JWT_EXPIRATION;
     
-    // Genera una clave segura y dinámica para firmar el token
-    private final Key SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    // 10 horas de duración en milisegundos
-    private final long JWT_EXPIRATION = 1000 * 60 * 60 * 10; 
+    private SecretKey key;
+
+    @PostConstruct
+    public void init() {
+        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    }
 
     public String generateToken(String username) {
         return Jwts.builder()
                 .setSubject(username) // Claim necesario con el nombre de usuario
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + JWT_EXPIRATION))
-                .signWith(SECRET_KEY) // Firma segura
+                .signWith(key) // Firma segura
                 .compact();
     }
 
-    public boolean validateToken(String token, String usernameDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(usernameDetails) && !isTokenExpired(token));
+    public boolean validateJwtToken(String token) {
+        try {
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            System.out.println("JWT validation error: " + e.getMessage());
+        }
+        
+        return false;
     }
 
     public String extractUsername(String token) {
@@ -47,7 +66,7 @@ public class JwtUtil {
 
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(SECRET_KEY)
+                .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
