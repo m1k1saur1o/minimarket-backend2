@@ -1,7 +1,15 @@
 package com.minimarket.entity;
 
-import jakarta.persistence.*;
 import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToMany;
 
 @Entity
 public class Rol {
@@ -12,10 +20,10 @@ public class Rol {
     @Column(nullable = false, unique = true)
     private String nombre;
 
+    @JsonIgnore
     @ManyToMany(mappedBy = "roles")
     private Set<Usuario> usuarios;
 
-    // Getters y Setters
     public Long getId() {
         return id;
     }
